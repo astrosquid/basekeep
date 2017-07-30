@@ -2,7 +2,7 @@
 🏰 A file driven utility for maintaining your PostgreSQL database through version control.
 
 ## Purpose
-basekeep is intended to make database structure maintainance easy. Databases are difficult to edit consistently because they are not tracked by version control. Therefore, basekeep will make changes to a database by using a file tree as a reference. 
+basekeep is intended to make database structure maintainance easy. Databases are difficult to edit consistently because they are not tracked by version control. Therefore, basekeep will make changes to a database by using a file tree as a reference. It is only UNIX compatible, and does not have a Windows port planned.
 
 **⚠️ Warning:** basekeep will also destroy things that are no longer represented in the file structure. **It is highly recommended to obtain a pg_dump of your entire database before running basekeep against it.** 
 
