@@ -4,6 +4,10 @@
 ## Purpose
 basekeep is intended to make database structure maintainance easy. Databases are difficult to edit consistently because they are not tracked by version control. Therefore, basekeep will make changes to a database by using a file tree as a reference. **Warning:** basekeep will also destroy things that are no longer represented in the file structure. **It is highly recommended to obtain a pg_dump of your entire database before running basekeep against it.** 
 
+If you're not sure, don't.
+
+Talk to your DBA.
+
 basekeep does not yet give a warning when it destroys entities.
 
 ## Setup
