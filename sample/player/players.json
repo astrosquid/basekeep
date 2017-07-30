@@ -1,0 +1,7 @@
+{
+    "uid": "serial primary key",
+    "username": "text",
+    "password": "text",
+    "joindate": "datetime",
+    "location": "int"
+}
