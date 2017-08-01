@@ -25,11 +25,24 @@ def analyze_schemas(conn, schema_dirs):
 
     for schema in existing_schemas:
         if schema not in schema_dirs:
-            print("Deletion: " + schema)
+            print("Deletion: " + str(schema))
             schema_removals.append(schema)
 
     print("Schemata to be added: " + str(schema_additions))
     print("Schemata to be removed: " + str(schema_removals))
+
+    confirm = continue_prompt("Is this okay?", "Editing schema.", "Aborting.")
+
+def continue_prompt(question, continue_message, abort_message):
+    answer = input(question + " (y/n) ")
+    if (answer != "Yes") and (answer != "yes") and (answer != "y"):
+        confirm = False
+        print(abort_message)
+    else:
+        confirm = True
+        print(continue_message)
+    
+    return confirm
 
 parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
 parser.add_argument("-l", "--location", dest="dblocation", required=True, type=str, help="The top directory of your database. Required.")
