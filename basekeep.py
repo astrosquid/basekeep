@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import operator
 import os
 import psycopg2
 import sys
@@ -9,28 +10,38 @@ import sys
 from pathlib import Path
 
 def analyze_schemas(conn, schema_dirs):
-    cursor = conn.cursor()
-    cursor.execute("""SELECT schema_name FROM information_schema.schemata
-        WHERE schema_owner != 'postgres';""")
-    existing_schemas = list(cursor)
+    existing_schemas = get_schemata(conn)
 
     schema_additions = []
     schema_removals = []
 
     for schema in schema_dirs:
         if schema not in existing_schemas:
-            print "Addition: " + schema
+            print("Addition: " + schema)
             schema_additions.append(schema)
 
     for schema in existing_schemas:
         if schema not in schema_dirs:
-            print "Deletion: " + str(schema)
+            print("Deletion: " + str(schema))
             schema_removals.append(schema)
 
-    print "Schemata to be added: " + str(schema_additions)
-    print "Schemata to be removed: " + str(schema_removals)
+    print("Schemata to be added: " + str(schema_additions))
+    print("Schemata to be removed: " + str(schema_removals))
 
     confirm = continue_prompt("Is this okay?", "Editing schema.", "Aborting.")
+
+def get_schemata(conn):
+    # there's most likely a more elegant way of going about this,
+    # but this is a good place to start.
+    sql = """SELECT schema_name FROM information_schema.schemata WHERE schema_owner != 'postgres';"""
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    existing_schemas = cursor.fetchall()
+    schema_list = list(map(operator.itemgetter(0), existing_schemas))
+    cursor.close()
+
+    return schema_list
 
 def continue_prompt(question, continue_message, abort_message):
     answer = input(question + " (y/n) ")
@@ -40,7 +51,7 @@ def continue_prompt(question, continue_message, abort_message):
     else:
         confirm = True
         print(continue_message)
-    
+
     return confirm
 
 def startup():
@@ -52,7 +63,7 @@ def startup():
     path = Path(dblocation)
 
     if os.path.isdir(str(path)) is not True:
-        print "Specified directory does not exist or is not directory."
+        print("Specified directory does not exist or is not directory.")
         sys.exit(0)
 
     dbname = str(Path(dblocation)).split('/')[-1]
@@ -64,9 +75,9 @@ def startup():
     basekeep_db_files = next(os.walk(dblocation))[2]
 
     if ("%s.json" % (dbname)) not in basekeep_db_files:
-        print "Aborting, please make sure there's a %s.json file in your db directory. See README." % (dbname)
+        print("Aborting, please make sure there's a %s.json file in your db directory. See README." % (dbname))
     elif ".secrets.json" not in basekeep_db_files:
-        print "Aborting, no secrets file found for specified database. Add .secrets.json to db dir. See README."
+        print("Aborting, no secrets file found for specified database. Add .secrets.json to db dir. See README.")
 
     secretspath = ""
     if str(path).endswith('/'):
@@ -83,8 +94,9 @@ def startup():
     try:
         conn = psycopg2.connect("dbname='%s' user='basekeep' host='localhost' password='%s'" % (dbname, dbpassword))
         analyze_schemas(conn, schema_dirs)
+        conn.close()
     except Exception as exception:
-        print "Connection lost. Stack trace: "
-        print exception
+        print("Connection lost. Stack trace: ")
+        print(exception)
 
 startup()
