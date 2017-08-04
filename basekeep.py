@@ -9,11 +9,11 @@ import sys
 
 from pathlib import Path
 
+schema_additions = []
+schema_removals = []
+
 def analyze_schemas(conn, schema_dirs):
     existing_schemas = get_schemata(conn)
-
-    schema_additions = []
-    schema_removals = []
 
     for schema in schema_dirs:
         if schema not in existing_schemas:
@@ -28,7 +28,14 @@ def analyze_schemas(conn, schema_dirs):
     print("Schemata to be added: " + str(schema_additions))
     print("Schemata to be removed: " + str(schema_removals))
 
-    confirm = continue_prompt("Is this okay?", "Editing schema.", "Aborting.")
+    confirm = yes_no_prompt("Is this okay?", "Continuing...", "Aborting.")
+
+    if (confirm is False):
+        sys.exit(0)
+
+def analyze_tables(conn, schema_dirs, dblocation):
+    for schema in schema_dirs:
+        print("in " + schema + " " + str(next(os.walk(dblocation+"/"+schema))[2]))
 
 def get_schemata(conn):
     # there's most likely a more elegant way of going about this,
@@ -43,7 +50,7 @@ def get_schemata(conn):
 
     return schema_list
 
-def continue_prompt(question, continue_message, abort_message):
+def yes_no_prompt(question, continue_message, abort_message):
     answer = input(question + " (y/n) ")
     if (answer != "Yes") and (answer != "yes") and (answer != "y"):
         confirm = False
@@ -68,7 +75,7 @@ def startup():
 
     dbname = str(Path(dblocation)).split('/')[-1]
 
-    confirm = continue_prompt("Run updates on database \"%s\"? Some data may be lost." % (dbname), "Analyzing file tree for %s." % (dbname), "Aborting.")
+    confirm = yes_no_prompt("Run updates on database \"%s\"? Some data may be lost." % (dbname), "Analyzing file tree for %s." % (dbname), "Aborting.")
     if confirm is not True:
         sys.exit(0)
 
@@ -94,6 +101,7 @@ def startup():
     try:
         conn = psycopg2.connect("dbname='%s' user='basekeep' host='localhost' password='%s'" % (dbname, dbpassword))
         analyze_schemas(conn, schema_dirs)
+        analyze_tables(conn, schema_dirs, dblocation)
         conn.close()
     except Exception as exception:
         print("Connection lost. Stack trace: ")
