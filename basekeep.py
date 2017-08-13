@@ -44,27 +44,30 @@ def analyze_tables(conn, schema_dirs, dblocation):
         # when the time comes, we can probably use os.path.isdir
         table_names = next(os.walk(dblocation+"/"+schema))[2]
         sql = sql.format(schema)
-        cur.execute()
-        db_tables = cur[0]
+        cur.execute(sql)
+        db_tables = cur.fetchall()
         for table in db_tables:
             if table not in table_names:
                 table_removals.append(table)
 
-        for table in (table_names):
+        for table in table_names:
             if table not in db_tables:
                 table_additions.append(table)
-        #print("in " + schema + " " + str(next(os.walk(dblocation+"/"+schema))[2]))
-        # once we have the table names, we can put them in a list in a tuple
-        # in this tuple, the first value will be the schema name.
-        # we'll have a list of these tuples. e.g.:
-        # [
-            #('character', ['players', 'non-players'])
-            #('item', ['items', 'item_trades'])
-        # ]
-        table_names = [table[:-5] for table in table_names]
-        # should not have '.json' file extensions.
-        #print(str(table_names))
-        file_table_list.append((schema, table_names))
+
+    print('Tables to be added: {}'.format(table_additions))
+    print('Tables to be removed: {}'.format(table_removals))
+    #print("in " + schema + " " + str(next(os.walk(dblocation+"/"+schema))[2]))
+    # once we have the table names, we can put them in a list in a tuple
+    # in this tuple, the first value will be the schema name.
+    # we'll have a list of these tuples. e.g.:
+    # [
+        #('character', ['players', 'non-players'])
+        #('item', ['items', 'item_trades'])
+    # ]
+    table_names = [table[:-5] for table in table_names]
+    # should not have '.json' file extensions.
+    #print(str(table_names))
+    file_table_list.append((schema, table_names))
 
     print("file table list: " + str(file_table_list))
     # we don't want to raise concerns about tables we're wiping out anyway.
