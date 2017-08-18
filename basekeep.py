@@ -11,20 +11,16 @@ from pathlib import Path
 
 schema_additions = []
 schema_removals = []
-table_additions = []
-table_removals = []
 
 def analyze_schemas(conn, schema_dirs):
     existing_schemas = get_schemata(conn)
 
     for schema in schema_dirs:
         if schema not in existing_schemas:
-            #print("Addition: " + schema)
             schema_additions.append(schema)
 
     for schema in existing_schemas:
         if schema not in schema_dirs:
-            #print("Deletion: " + str(schema))
             schema_removals.append(schema)
 
     print("Schemata to be added: " + str(schema_additions))
@@ -46,6 +42,9 @@ def analyze_tables(conn, schema_dirs, dblocation):
         sql = sql.format(schema)
         cur.execute(sql)
         db_tables = cur.fetchall()
+        table_additions, table_removals = [], []
+        schema_table_additions, schema_table_removals = (), ()
+        
         for table in db_tables:
             if table not in table_names:
                 table_removals.append(table)
@@ -54,8 +53,12 @@ def analyze_tables(conn, schema_dirs, dblocation):
             if table not in db_tables:
                 table_additions.append(table)
 
-    print('Tables to be added: {}'.format(table_additions))
-    print('Tables to be removed: {}'.format(table_removals))
+        schema_table_additions += (schema, table_additions,)
+        schema_table_removals += (schema, table_removals,)
+
+        print('Tables to be added: {}'.format(schema_table_additions))
+        print('Tables to be removed: {}'.format(schema_table_removals))
+
     #print("in " + schema + " " + str(next(os.walk(dblocation+"/"+schema))[2]))
     # once we have the table names, we can put them in a list in a tuple
     # in this tuple, the first value will be the schema name.
