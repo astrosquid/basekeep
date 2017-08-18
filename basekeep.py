@@ -4,10 +4,9 @@ import argparse
 import json
 import operator
 import os
+from pathlib import Path
 import psycopg2
 import sys
-
-from pathlib import Path
 
 schema_additions = []
 schema_removals = []
@@ -47,44 +46,17 @@ def analyze_tables(conn, schema_dirs, dblocation):
         
         for table in db_tables:
             if table not in table_names:
-                table_removals.append(table)
+                table_removals.append(table[:-5])
 
         for table in table_names:
             if table not in db_tables:
-                table_additions.append(table)
+                table_additions.append(table[:-5])
 
         schema_table_additions += (schema, table_additions,)
         schema_table_removals += (schema, table_removals,)
 
         print('Tables to be added: {}'.format(schema_table_additions))
         print('Tables to be removed: {}'.format(schema_table_removals))
-
-    #print("in " + schema + " " + str(next(os.walk(dblocation+"/"+schema))[2]))
-    # once we have the table names, we can put them in a list in a tuple
-    # in this tuple, the first value will be the schema name.
-    # we'll have a list of these tuples. e.g.:
-    # [
-        #('character', ['players', 'non-players'])
-        #('item', ['items', 'item_trades'])
-    # ]
-    table_names = [table[:-5] for table in table_names]
-    # should not have '.json' file extensions.
-    #print(str(table_names))
-    file_table_list.append((schema, table_names))
-
-    print("file table list: " + str(file_table_list))
-    # we don't want to raise concerns about tables we're wiping out anyway.
-    # alternatively, we could forgive our query for not finding tables that 
-    # we've already blown away. but that feels underhanded considering the
-    # motivation behind this program.
-    removing_anyway = []
-    for table_tuple in file_table_list:
-        print("analyzing: " + str(table_tuple))
-        if table_tuple[0] in schema_removals:
-            print("looking for " + table_tuple[0])
-            removing_anyway.append(table_tuple)
-
-    print("already removing: " + str(removing_anyway))
 
 def get_schemata(conn):
     # there's most likely a more elegant way of going about this,
