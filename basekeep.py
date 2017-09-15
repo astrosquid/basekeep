@@ -160,11 +160,14 @@ def make_db_edits(dblocation, path, args):
         print(exception)
 
 def write_json_to_file(dbname, db_model):
+    print('Outputting to %s.json' % (dbname))
     file = open('%s.json' % (dbname), 'w')
     file.write(db_model)
     file.close()
 
 def startup():
+    # These flags are not being used the way they should be.
+    # TODO: read up on the right way to do this.
     parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
     parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
     parser.add_argument("-b", "--build-model", dest="build_flag", required=False, type=str, help="Build an analysis of the database.")
