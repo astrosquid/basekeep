@@ -62,6 +62,37 @@ def analyze_tables(conn, schema_dirs, dblocation):
 
     return [schema_table_additions, schema_table_removals]
 
+def build_database_model(dbname):
+    conn = psycopg2.connect("dbname='%s'" % (dbname))
+    schemas = get_existing_schemata(conn)
+
+    db_model = {}
+    for schema in schemas:
+        table_list = get_existing_tables(conn, schema)
+        tables = {}
+        for table in table_list:
+            columns = get_existing_columns(conn, schema, table)
+            tables[table] = columns
+        db_model[schema] = tables
+
+    write_json_to_file(dbname, json.dumps(db_model))
+
+def get_existing_columns(conn, schema, table):
+    sql = """select column_name from information_schema.columns where table_schema = '%s' and table_name = '%s' """ % (schema, table)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    existing_columns = cursor.fetchall()
+    column_list = list(map(operator.itemgetter(0), existing_columns))
+    return column_list
+
+def get_existing_tables(conn, schema):
+    sql = """select table_name from information_schema.tables where table_schema = '%s' """ % (schema)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    existing_tables = cursor.fetchall()
+    table_list = list(map(operator.itemgetter(0), existing_tables))
+    return table_list
+
 def get_existing_schemata(conn):
     # there's most likely a more elegant way of going about this,
     # but this is a good place to start.
@@ -86,15 +117,7 @@ def yes_no_prompt(question, continue_message, abort_message):
 
     return confirm
 
-def startup():
-    parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
-    parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
-    parser.add_argument("-a", "--analyze", dest="analyze_flag", required=False, type=bool, help="Build an analysis of the data.")
-    args = parser.parse_args()
-
-    dblocation = args.dblocation
-    path = Path(dblocation)
-
+def make_db_edits(dblocation, path, args):
     if os.path.isdir(str(path)) is not True:
         print("Specified directory does not exist or is not directory.")
         sys.exit(0)
@@ -135,5 +158,25 @@ def startup():
     except Exception as exception:
         print("Connection lost. Stack trace: ")
         print(exception)
+
+def write_json_to_file(dbname, db_model):
+    file = open('%s.json' % (dbname), 'w')
+    file.write(db_model)
+    file.close()
+
+def startup():
+    parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
+    parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
+    parser.add_argument("-b", "--build-model", dest="build_flag", required=False, type=str, help="Build an analysis of the database.")
+    args = parser.parse_args()
+
+    if args.dblocation:
+        dblocation = args.dblocation
+        path = Path(dblocation)    
+        make_db_edits(dblocation, path, args)
+
+    if args.build_flag:
+        dbname = args.build_flag
+        build_database_model(dbname)
 
 startup()
