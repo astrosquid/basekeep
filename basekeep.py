@@ -1,4 +1,4 @@
-#/usr/local/bin/python3
+#!/usr/local/bin/python3
 
 import argparse
 import json
@@ -11,8 +11,10 @@ import sys
 schema_additions = []
 schema_removals = []
 
+#def execute_changes()
+
 def analyze_schemas(conn, schema_dirs):
-    existing_schemas = get_schemata(conn)
+    existing_schemas = get_existing_schemata(conn)
 
     for schema in schema_dirs:
         if schema not in existing_schemas:
@@ -58,7 +60,9 @@ def analyze_tables(conn, schema_dirs, dblocation):
         print('Tables to be added: {}'.format(schema_table_additions))
         print('Tables to be removed: {}'.format(schema_table_removals))
 
-def get_schemata(conn):
+    return [schema_table_additions, schema_table_removals]
+
+def get_existing_schemata(conn):
     # there's most likely a more elegant way of going about this,
     # but this is a good place to start.
     sql = """SELECT schema_name FROM information_schema.schemata WHERE schema_owner != 'postgres';"""
@@ -84,7 +88,8 @@ def yes_no_prompt(question, continue_message, abort_message):
 
 def startup():
     parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
-    parser.add_argument("-l", "--location", dest="dblocation", required=True, type=str, help="The top directory of your database. Required.")
+    parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
+    parser.add_argument("-a", "--analyze", dest="analyze_flag", required=False, type=bool, help="Build an analysis of the data.")
     args = parser.parse_args()
 
     dblocation = args.dblocation
@@ -96,7 +101,7 @@ def startup():
 
     dbname = str(Path(dblocation)).split('/')[-1]
 
-    confirm = yes_no_prompt("Run updates on database \"%s\"? Some data may be lost." % (dbname), "Analyzing file tree for %s." % (dbname), "Aborting.")
+    confirm = yes_no_prompt("Look for updates on database \"%s\"?" % (dbname), "Analyzing file tree for %s." % (dbname), "Aborting.")
     if confirm is not True:
         sys.exit(0)
 
@@ -123,6 +128,9 @@ def startup():
         conn = psycopg2.connect("dbname='%s' user='basekeep' host='localhost' password='%s'" % (dbname, dbpassword))
         analyze_schemas(conn, schema_dirs)
         analyze_tables(conn, schema_dirs, dblocation)
+        confirm = yes_no_prompt("Execute these changes against the database?", "Making changes...", "Aborting.")
+        #execute_changes = 
+        analyze_columns(conn, schema_dirs, dblocation)
         conn.close()
     except Exception as exception:
         print("Connection lost. Stack trace: ")
