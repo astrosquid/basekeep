@@ -13,6 +13,9 @@ schema_removals = []
 
 #def execute_changes()
 
+def analyze_database(conn, dbname):
+    database_model = build_database_model(dbname)
+
 def analyze_schemas(conn, schema_dirs):
     existing_schemas = get_existing_schemata(conn)
 
@@ -75,7 +78,7 @@ def build_database_model(dbname):
             tables[table] = columns
         db_model[schema] = tables
 
-    write_json_to_file(dbname, json.dumps(db_model))
+    return db_model
 
 def get_existing_columns(conn, schema, table):
     sql = """select column_name from information_schema.columns where table_schema = '%s' and table_name = '%s' """ % (schema, table)
@@ -161,13 +164,14 @@ def make_db_edits(dblocation, path, args):
 
 def write_json_to_file(dbname, db_model):
     print('Outputting to %s.json' % (dbname))
-    file = open('%s.json' % (dbname), 'w')
+    file = open('%s_current_state.json' % (dbname), 'w')
     file.write(db_model)
     file.close()
 
 def startup():
     # These flags are not being used the way they should be.
     # TODO: read up on the right way to do this.
+    # Might be able to use 
     parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
     parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
     parser.add_argument("-b", "--build-model", dest="build_flag", required=False, type=str, help="Build an analysis of the database.")
@@ -180,6 +184,7 @@ def startup():
 
     if args.build_flag:
         dbname = args.build_flag
-        build_database_model(dbname)
+        database_model = build_database_model(dbname)
+        write_json_to_file(dbname, json.dumps(database_model, sort_keys=False, indent=4))
 
 startup()
