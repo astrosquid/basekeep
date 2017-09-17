@@ -8,14 +8,49 @@ from pathlib import Path
 import psycopg2
 import sys
 
-schema_additions = []
-schema_removals = []
-
 #def execute_changes()
 
-def analyze_database(conn, dbname):
-    database_model = build_database_model(dbname)
+def analyze_database(conn, dbname, path):
+    current_database_model = build_database_model(dbname)
+    user_database_model = get_user_json(path)
+    
+    schema_additions, table_additions, column_additions = [], [], []
+    schema_removals, table_removals, column_removals = [], [], []
+    
+    # first look for things missing from the current database model
+    # then we'll look for extra things that the model has and we don't
+    # in order to find removals
+    for schema in user_database_model:
+        if schema not in current_database_model:
+            schema_additions.append(schema)
 
+        for table in user_database_model[schema]:
+            if table not in current_database_model[schema]:
+                table_additions.append([schema, table])
+
+            for column in user_database_model[schema][table]:
+                if column not in current_database_model[schema]:
+                    column_additions.append([schema, table, column])
+
+    for schema in current_database_model:
+        if schema not in user_database_model:
+            schema_removals.append(schema)
+
+        for table in current_database_model[schema]:
+            if table not in user_database_model[schema]:
+                if schema not in schema_removals:
+                    table_removals.append([schema, table])
+
+            for column in current_database_model[schema][table]:
+                if column not in user_database_model[schema][table]:
+                    # need to clean this up a bit. we need to look for tables
+                    # that are present in the table_removals list.
+                    if schema not in schema_removals:
+                        column_removals.append([schema, table, column])
+
+    print_changes('Schema', 'additions', schema_additions)
+    print_changes('Schema', 'removals', schema_removals)
+        
 def analyze_schemas(conn, schema_dirs):
     existing_schemas = get_existing_schemata(conn)
 
@@ -65,6 +100,7 @@ def analyze_tables(conn, schema_dirs, dblocation):
 
     return [schema_table_additions, schema_table_removals]
 
+# returns a dictionary representation of the database
 def build_database_model(dbname):
     conn = psycopg2.connect("dbname='%s'" % (dbname))
     schemas = get_existing_schemata(conn)
@@ -108,6 +144,13 @@ def get_existing_schemata(conn):
     cursor.close()
 
     return schema_list
+
+def get_user_json(path):
+    print("Getting user's JSON file...")
+    with open(str(path), "r") as json_file:
+        json_data = json.load(json_file)
+
+    return json_data
 
 def yes_no_prompt(question, continue_message, abort_message):
     answer = input(question + " (y/n) ")
@@ -162,8 +205,20 @@ def make_db_edits(dblocation, path, args):
         print("Connection lost. Stack trace: ")
         print(exception)
 
+def print_changes(relation_changing, add_or_remove, relations):
+    if add_or_remove is 'additions':
+        line_starter = '+'
+    else: 
+        line_starter = '-'
+
+    print()
+    print(relation_changing, add_or_remove, ':')
+    
+    for relation in relations:
+        print('  %s' % (line_starter), relation)
+
 def write_json_to_file(dbname, db_model):
-    print('Outputting to %s.json' % (dbname))
+    print('Outputting to %s_current_state.json' % (dbname))
     file = open('%s_current_state.json' % (dbname), 'w')
     file.write(db_model)
     file.close()
@@ -171,16 +226,20 @@ def write_json_to_file(dbname, db_model):
 def startup():
     # These flags are not being used the way they should be.
     # TODO: read up on the right way to do this.
-    # Might be able to use 
+    # Might be able to use docopt
     parser = argparse.ArgumentParser(description='Maintain your database structure using directories and files.')
-    parser.add_argument("-l", "--location", dest="dblocation", required=False, type=str, help="The top directory of your database.")
     parser.add_argument("-b", "--build-model", dest="build_flag", required=False, type=str, help="Build an analysis of the database.")
+    parser.add_argument("-e", "--execute", dest="dblocation", required=False, type=str, help="The top directory of your database.")
+    parser.add_argument("-n", "--name", dest="dbname", required=False, type=str, help="Name of your database.")
     args = parser.parse_args()
 
     if args.dblocation:
         dblocation = args.dblocation
-        path = Path(dblocation)    
-        make_db_edits(dblocation, path, args)
+        path = Path(dblocation)
+        #make_db_edits(dblocation, path, args)
+        dbname = args.dbname
+        conn = psycopg2.connect("dbname='%s'" % (dbname))
+        analyze_database(conn, dbname, path)
 
     if args.build_flag:
         dbname = args.build_flag
