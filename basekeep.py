@@ -16,40 +16,44 @@ def analyze_database(conn, dbname, path):
     
     schema_additions, table_additions, column_additions = [], [], []
     schema_removals, table_removals, column_removals = [], [], []
+    schema_changes, table_changes, column_changes = [], [], []
     
     # first look for things missing from the current database model
-    # then we'll look for extra things that the model has and we don't
-    # in order to find removals
     for schema in user_database_model:
         if schema not in current_database_model:
-            schema_additions.append(schema)
+            schema_changes.append(['+', schema])
 
         for table in user_database_model[schema]:
             if table not in current_database_model[schema]:
-                table_additions.append([schema, table])
+                table_changes.append(['+', schema, table])
 
             for column in user_database_model[schema][table]:
                 if column not in current_database_model[schema]:
-                    column_additions.append([schema, table, column])
+                    column_changes.append(['+', schema, table, column])
 
+    # then we'll look for extra things that the model has and we don't
+    # in order to find removals
     for schema in current_database_model:
         if schema not in user_database_model:
-            schema_removals.append(schema)
+            schema_changes.append(['-', schema])
 
         for table in current_database_model[schema]:
             if table not in user_database_model[schema]:
                 if schema not in schema_removals:
-                    table_removals.append([schema, table])
+                    table_removals.append(['-', schema, table])
 
             for column in current_database_model[schema][table]:
                 if column not in user_database_model[schema][table]:
                     # need to clean this up a bit. we need to look for tables
                     # that are present in the table_removals list.
                     if schema not in schema_removals:
-                        column_removals.append([schema, table, column])
+                        column_removals.append(['-', schema, table, column])
 
-    print_changes('Schema', 'additions', schema_additions)
-    print_changes('Schema', 'removals', schema_removals)
+    print()
+
+    print_changes('Schemas', schema_changes)
+    print_changes('Tables', table_changes)
+    print_changes('Columns', column_changes)
         
 def analyze_schemas(conn, schema_dirs):
     existing_schemas = get_existing_schemata(conn)
@@ -205,17 +209,19 @@ def make_db_edits(dblocation, path, args):
         print("Connection lost. Stack trace: ")
         print(exception)
 
-def print_changes(relation_changing, add_or_remove, relations):
-    if add_or_remove is 'additions':
-        line_starter = '+'
-    else: 
-        line_starter = '-'
-
-    print()
-    print(relation_changing, add_or_remove, ':')
+def print_changes(relation_changing, relations):
+    print(relation_changing + ':')
     
     for relation in relations:
-        print('  %s' % (line_starter), relation)
+        if relation_changing is 'Schemas':
+            print(' {} {}'.format(relation[0], relation[1]))
+        elif relation_changing is 'Tables':
+            print(' {} {}.{}'.format(relation[0], relation[1], relation[2]))
+        elif relation_changing is 'Columns':
+            # will need to account for column type eventually
+            print(' {} {}.{}.{}'.format(relation[0], relation[1], relation[2], relation[3]))
+
+    print()
 
 def write_json_to_file(dbname, db_model):
     print('Outputting to %s_current_state.json' % (dbname))
